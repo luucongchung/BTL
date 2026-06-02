@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoseAlert - AI Posture Monitor</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --text-dark: #2f3542;
+            --text-light: #ffffff;
+        }
+
+        /* Hình nền Gradient chuyển động động */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-dark);
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h1 {
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* Hiệu ứng Glassmorphism cho các thẻ Card */
+        .card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Camera Container với hiệu ứng viền phát sáng (Glow) */
+        #canvas-container {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1 / 1; 
+            border-radius: 15px;
+            overflow: hidden;
+            background-color: #000;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            border: 4px solid transparent;
+        }
+
+        /* Lớp CSS cho viền camera thay đổi theo trạng thái */
+        .camera-good {
+            border-color: var(--success) !important;
+            box-shadow: 0 0 25px var(--success) !important;
+        }
+        
+        .camera-bad {
+            border-color: var(--danger) !important;
+            box-shadow: 0 0 30px var(--danger) !important;
+            animation: cameraPulse 1s infinite;
+        }
+
+        @keyframes cameraPulse {
+            0% { box-shadow: 0 0 20px var(--danger); }
+            50% { box-shadow: 0 0 40px var(--danger); }
+            100% { box-shadow: 0 0 20px var(--danger); }
+        }
+
+        #canvas-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+        }
+
+        .status-panel {
+            flex: 1;
+            min-width: 320px;
+            max-width: 500px;
+        }
+
+        .status-text {
+            font-size: 26px;
+            font-weight: 800;
+            margin: 15px 0;
+            padding: 15px 25px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            text-align: center;
+            transition: all 0.3s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .status-good { 
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); 
+            color: #065f46; 
+            box-shadow: 0 4px 15px rgba(46, 213, 115, 0.3);
+        }
+        .status-bad { 
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); 
+            color: #991b1b; 
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+        }
+
+        /* Thanh tiến trình có hiệu ứng chạy sọc (Striped animation) */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #dfe4ea;
+            border-radius: 10px;
+            margin-top: 10px;
+            height: 14px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        #warning-progress {
+            height: 100%;
+            width: 0%;
+            background-image: linear-gradient(
+                45deg, 
+                rgba(255,255,255,.15) 25%, 
+                transparent 25%, 
+                transparent 50%, 
+                rgba(255,255,255,.15) 50%, 
+                rgba(255,255,255,.15) 75%, 
+                transparent 75%, 
+                transparent
+            );
+            background-size: 1rem 1rem;
+            background-color: var(--danger);
+            transition: width 1s linear, background-color 0.3s;
+            animation: progress-stripes 1s linear infinite;
+        }
+
+        @keyframes progress-stripes {
+            from { background-position: 1rem 0; }
+            to { background-position: 0 0; }
+        }
+
+        /* Popup cảnh báo rung lắc mạnh */
+        #warning-alert {
+            display: none;
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 10px 25px rgba(255, 71, 87, 0.5);
+            animation: shakeAlert 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
+        }
+
+        @keyframes shakeAlert {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .controls {
+            margin-top: 10px;
+            z-index: 10;
+        }
+
+        button {
+            background: var(--text-light);
+            color: var(--primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            background: var(--primary);
+            color: var(--text-light);
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 350px;
+            margin-top: 25px;
+        }
+
+        #timer-text {
+            display: block;
+            text-align: right;
+            font-weight: bold;
+            margin-top: 5px;
+            color: #57606f;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 PoseAlert - Smart AI Monitor</h1>
+    
+    <div class="controls">
+        <button type="button" onclick="init()">Khởi động Hệ Thống</button>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3 style="color: var(--primary); margin-top:0;">🎥 Live Camera</h3>
+            <div id="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div id="label-container" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary);">Đang chờ khởi động...</div>
+        </div>
+
+        <div class="card status-panel">
+            <h3 style="color: var(--primary); margin-top:0;">📊 Bảng Điều Khiển</h3>
+            <div id="current-status" class="status-text status-good">Sẵn sàng</div>
+            
+            <div style="width: 100%; text-align: left; font-weight: 600; margin-top: 10px;">Cảnh báo tư thế sai liên tục:</div>
+            <div class="progress-bar-container">
+                <div id="warning-progress"></div>
+            </div>
+            <span id="timer-text">0s / 30s</span>
+
+            <div id="warning-alert">
+                ⚠️ PHÁT HIỆN NGỒI SAI QUÁ 30 GIÂY!<br>HÃY ĐIỀU CHỈNH TƯ THẾ NGAY! ⚠️
+            </div>
+
+            <div class="chart-container">
+                <canvas id="statsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script type="text/javascript">
+    // ==========================================
+    // LINK MODEL CỦA BẠN :
+    const URL = "https://teachablemachine.withgoogle.com/models/a8QICad-j/"; 
+    // ==========================================
+
+    let model, webcam, ctx, labelContainer, maxPredictions;
+    let badPostureTimer = 0;
+    let timerInterval = null;
+    let isWarningActive = false;
+
+    // Dữ liệu thống kê
+    let statsData = {
+        'ngồi đúng': 0,
+        'cúi đầu': 0,
+        'vẹo lưng': 0,
+        'mắt gần': 0
+    };
+    let chart;
+
+    async function init() {
+        // Vô hiệu hóa nút bấm để tránh click nhiều lần
+        document.querySelector("button").disabled = true;
+        document.querySelector("button").innerText = "Đang tải AI...";
+
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        document.getElementById("label-container").innerText = "Đang kết nối camera...";
+
+        model = await tmPose.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // Setup Webcam
+        const size = 400;
+        const flip = true; 
+        webcam = new tmPose.Webcam(size, size, flip);
+        await webcam.setup(); 
+        await webcam.play();
+        window.requestAnimationFrame(loop);
+
+        // Setup Canvas
+        const canvas = document.getElementById("canvas");
+        canvas.width = size; canvas.height = size;
+        ctx = canvas.getContext("2d");
+        labelContainer = document.getElementById("label-container");
+
+        // Đổi lại text nút
+        document.querySelector("button").innerText = "Đang hoạt động";
+
+        initChart();
+        setInterval(updateChartData, 1000); 
+    }
+
+    async function loop(timestamp) {
+        webcam.update(); 
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+        const prediction = await model.predict(posenetOutput);
+
+        let highestProb = 0;
+        let currentPose = "";
+
+        // Tìm tư thế có xác suất cao nhất
+        for (let i = 0; i < maxPredictions; i++) {
+            if (prediction[i].probability > highestProb) {
+                highestProb = prediction[i].probability;
+                currentPose = prediction[i].className;
+            }
+        }
+
+        labelContainer.innerHTML = currentPose + " <span style='color:#a4b0be'>(" + (highestProb * 100).toFixed(0) + "%)</span>";
+
+        handlePostureLogic(currentPose);
+        drawPose(pose);
+    }
+
+    function handlePostureLogic(currentPose) {
+        const statusDiv = document.getElementById("current-status");
+        const canvasContainer = document.getElementById("canvas-container");
+        
+        // Cập nhật thống kê
+        if(statsData[currentPose] !== undefined) {
+            window.currentDetectedPose = currentPose; 
+        } else {
+            window.currentDetectedPose = 'khác'; 
+        }
+
+        const isGoodPosture = (currentPose.toLowerCase() === "ngồi đúng" || currentPose.toLowerCase() === "normal");
+
+        if (!isGoodPosture) {
+            statusDiv.innerText = "🚨 Sai tư thế: " + currentPose;
+            statusDiv.className = "status-text status-bad";
+            
+            // Đổi màu viền camera sang đỏ nhấp nháy
+            canvasContainer.classList.remove("camera-good");
+            canvasContainer.classList.add("camera-bad");
+            
+            if (!timerInterval) {
+                timerInterval = setInterval(() => {
+                    badPostureTimer++;
+                    document.getElementById("timer-text").innerText = badPostureTimer + "s / 30s";
+                    document.getElementById("warning-progress").style.width = (badPostureTimer / 30 * 100) + "%";
+
+                    if (badPostureTimer >= 30 && !isWarningActive) {
+                        triggerWarning();
+                    }
+                }, 1000);
+            }
+        } else {
+            statusDiv.innerText = "✅ Tư thế chuẩn";
+            statusDiv.className = "status-text status-good";
+            
+            // Đổi màu viền camera sang xanh lá
+            canvasContainer.classList.remove("camera-bad");
+            canvasContainer.classList.add("camera-good");
+
+            resetWarning();
+        }
+    }
+
+    function triggerWarning() {
+        isWarningActive = true;
+        document.getElementById("warning-alert").style.display = "block";
+        document.getElementById("alarm-sound").play();
+    }
+
+    function resetWarning() {
+        isWarningActive = false;
+        badPostureTimer = 0;
+        document.getElementById("timer-text").innerText = "0s / 30s";
+        document.getElementById("warning-progress").style.width = "0%";
+        document.getElementById("warning-alert").style.display = "none";
+        document.getElementById("alarm-sound").pause();
+        document.getElementById("alarm-sound").currentTime = 0;
+        
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function drawPose(pose) {
+        if (webcam.canvas) {
+            ctx.drawImage(webcam.canvas, 0, 0);
+            if (pose) {
+                const minPartConfidence = 0.5;
+                // Có thể đổi màu nét vẽ khung xương tại đây nếu muốn đi sâu hơn vào API của Teachable Machine
+                tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+            }
+        }
+    }
+
+    function initChart() {
+        const ctxChart = document.getElementById('statsChart').getContext('2d');
+        // Thiết kế lại màu sắc biểu đồ cho hợp với giao diện mới
+        chart = new Chart(ctxChart, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ngồi đúng', 'Cúi đầu', 'Vẹo lưng', 'Mắt gần'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#2ed573', '#ff4757', '#ffa502', '#1e90ff'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '65%',
+                plugins: {
+                    title: { display: true, text: 'Tỷ lệ tư thế trong phiên học', font: {size: 16} },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function updateChartData() {
+        if (!window.currentDetectedPose) return;
+        
+        if (statsData[window.currentDetectedPose] !== undefined) {
+            statsData[window.currentDetectedPose]++;
+        }
+
+        const total = Object.values(statsData).reduce((a, b) => a + b, 0);
+        if (total > 0) {
+            chart.data.datasets[0].data = [
+                statsData['ngồi đúng'],
+                statsData['cúi đầu'],
+                statsData['vẹo lưng'],
+                statsData['mắt gần']
+            ];
+            chart.update();
+        }
+    }
+</script>
+
+</body>
+</html>
