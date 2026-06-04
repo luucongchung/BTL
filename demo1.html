@@ -2,26 +2,43 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>PoseAlert - Tracking</title>
+    <title>PoseAlert - Timer & Warning</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        #status { font-size: 24px; font-weight: bold; margin: 20px; }
+        body { font-family: sans-serif; text-align: center; }
+        .dashboard { display: flex; justify-content: center; gap: 50px; margin-top: 20px; }
+        #status { font-size: 24px; font-weight: bold; margin: 10px; }
         .good { color: green; }
         .bad { color: red; }
+        #timer-text { font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>PoseAlert - Theo dõi bộ xương</h1>
-    <button type="button" onclick="init()">Bật Hệ Thống</button>
-    <div id="status">Trạng thái: Chờ khởi động...</div>
-    <div><canvas id="canvas"></canvas></div>
-    <div id="label-container"></div>
+    <h1>PoseAlert - Hệ thống Cảnh Báo</h1>
+    <button onclick="init()">Bật Hệ Thống</button>
+    
+    <div class="dashboard">
+        <div>
+            <canvas id="canvas"></canvas>
+            <div id="label-container"></div>
+        </div>
+        <div>
+            <div id="status">Chờ khởi động...</div>
+            <p>Thời gian sai tư thế:</p>
+            <div id="timer-text">0s / 30s</div>
+        </div>
+    </div>
+
+    <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
 <script type="text/javascript">
     const URL = "https://teachablemachine.withgoogle.com/models/a8QICad-j/"; 
     let model, webcam, ctx, labelContainer, maxPredictions;
+    
+    // Thêm các biến quản lý thời gian
+    let badPostureTimer = 0;
+    let timerInterval = null;
 
     async function init() {
         const modelURL = URL + "model.json";
@@ -67,12 +84,33 @@
 
     function handlePostureLogic(currentPose) {
         const statusDiv = document.getElementById("status");
-        if (currentPose.toLowerCase() === "ngồi đúng" || currentPose.toLowerCase() === "normal") {
-            statusDiv.innerText = "Tư thế chuẩn";
-            statusDiv.className = "good";
-        } else {
+        
+        if (currentPose.toLowerCase() !== "ngồi đúng" && currentPose.toLowerCase() !== "normal") {
             statusDiv.innerText = "Sai tư thế: " + currentPose;
             statusDiv.className = "bad";
+            
+            if (!timerInterval) {
+                timerInterval = setInterval(() => {
+                    badPostureTimer++;
+                    document.getElementById("timer-text").innerText = badPostureTimer + "s / 30s";
+                    if (badPostureTimer >= 30) {
+                        document.getElementById("alarm-sound").play();
+                    }
+                }, 1000);
+            }
+        } else {
+            statusDiv.innerText = "Tư thế chuẩn";
+            statusDiv.className = "good";
+            
+            badPostureTimer = 0;
+            document.getElementById("timer-text").innerText = "0s / 30s";
+            document.getElementById("alarm-sound").pause();
+            document.getElementById("alarm-sound").currentTime = 0;
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
         }
     }
 
