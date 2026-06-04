@@ -26,3 +26,12 @@ Phiên bản này tập trung vào việc trực quan hóa bộ khung xương ng
   * Nếu kết quả trùng với nhãn "Ngồi đúng" hoặc "Normal": Cập nhật trạng thái thành "Tư thế chuẩn" (chữ màu xanh).
   * Nếu rơi vào các nhãn khác: Báo lỗi "Sai tư thế" kèm theo tên tư thế sai cụ thể (chữ màu đỏ).
 * **Tối ưu luồng xử lý:** Sử dụng `window.requestAnimationFrame` để duy trì vòng lặp cập nhật liên tục từ webcam và đưa vào mô hình nhận diện mà không gây giật lag trình duyệt.
+## Bản 3: Thêm Timer đếm ngược 30s & Cảnh báo âm thanh
+
+Phiên bản này tập trung xử lý logic thời gian và âm thanh để tự động phát cảnh báo khi người dùng ngồi sai tư thế quá lâu.
+
+### Các công việc đã làm:
+* **Tách biệt giao diện thành dạng Dashboard:** Sử dụng Flexbox để chia màn hình làm 2 phần trực quan, một bên hiển thị camera/khung xương và một bên hiển thị trạng thái, đồng hồ đếm.
+* **Tích hợp bộ đếm thời gian (Timer):** Viết thêm biến `badPostureTimer` và dùng `setInterval` để đếm giây tích lũy khi phát hiện ngồi sai tư thế, hiển thị dạng `Xs / 30s`.
+* **Cài đặt cảnh báo âm thanh:** Thêm thẻ `<audio>` để nạp file báo động. Khi thời gian đếm đạt từ 30 giây trở lên, hệ thống tự động gọi hàm `.play()` để phát âm thanh nhắc nhở.
+* **Xử lý logic tự động Reset:** Khi người dùng ngồi đúng trở lại, hệ thống tự động xóa bộ đếm bằng `clearInterval`, đưa thời gian về `0s / 30s` và dừng phát file âm thanh.
