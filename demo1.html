@@ -2,31 +2,40 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>PoseAlert - Timer & Warning</title>
+    <title>PoseAlert - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; }
-        .dashboard { display: flex; justify-content: center; gap: 50px; margin-top: 20px; }
-        #status { font-size: 24px; font-weight: bold; margin: 10px; }
-        .good { color: green; }
-        .bad { color: red; }
-        #timer-text { font-size: 20px; font-weight: bold; }
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; text-align: center; }
+        .dashboard { display: flex; justify-content: center; gap: 30px; margin-top: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 10px; border: 1px solid #ccc; width: 400px;}
+        #status { font-size: 24px; font-weight: bold; margin: 10px; padding: 10px; }
+        .good { background-color: #d1fae5; color: #065f46; }
+        .bad { background-color: #fee2e2; color: #991b1b; }
+        .chart-container { width: 100%; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>PoseAlert - Hệ thống Cảnh Báo</h1>
+    <h1>PoseAlert Dashboard</h1>
     <button onclick="init()">Bật Hệ Thống</button>
     
     <div class="dashboard">
-        <div>
+        <div class="panel">
+            <h3>Camera</h3>
             <canvas id="canvas"></canvas>
             <div id="label-container"></div>
         </div>
-        <div>
+        
+        <div class="panel">
+            <h3>Điều Khiển & Thống Kê</h3>
             <div id="status">Chờ khởi động...</div>
-            <p>Thời gian sai tư thế:</p>
-            <div id="timer-text">0s / 30s</div>
+            <p>Thời gian đếm ngược cảnh báo:</p>
+            <div id="timer-text" style="font-size: 20px; font-weight:bold;">0s / 30s</div>
+            
+            <div class="chart-container">
+                <canvas id="statsChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -36,9 +45,12 @@
     const URL = "https://teachablemachine.withgoogle.com/models/a8QICad-j/"; 
     let model, webcam, ctx, labelContainer, maxPredictions;
     
-    // Thêm các biến quản lý thời gian
     let badPostureTimer = 0;
     let timerInterval = null;
+    
+    // Khai báo biến biểu đồ
+    let statsData = { 'ngồi đúng': 0, 'cúi đầu': 0, 'vẹo lưng': 0, 'mắt gần': 0 };
+    let chart;
 
     async function init() {
         const modelURL = URL + "model.json";
@@ -56,6 +68,9 @@
         canvas.width = size; canvas.height = size;
         ctx = canvas.getContext("2d");
         labelContainer = document.getElementById("label-container");
+
+        initChart();
+        setInterval(updateChartData, 1000);
     }
 
     async function loop() {
@@ -85,6 +100,12 @@
     function handlePostureLogic(currentPose) {
         const statusDiv = document.getElementById("status");
         
+        if(statsData[currentPose] !== undefined) {
+            window.currentDetectedPose = currentPose; 
+        } else {
+            window.currentDetectedPose = 'khác';
+        }
+
         if (currentPose.toLowerCase() !== "ngồi đúng" && currentPose.toLowerCase() !== "normal") {
             statusDiv.innerText = "Sai tư thế: " + currentPose;
             statusDiv.className = "bad";
@@ -121,6 +142,34 @@
                 tmPose.drawKeypoints(pose.keypoints, 0.5, ctx);
                 tmPose.drawSkeleton(pose.keypoints, 0.5, ctx);
             }
+        }
+    }
+
+    function initChart() {
+        const ctxChart = document.getElementById('statsChart').getContext('2d');
+        chart = new Chart(ctxChart, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ngồi đúng', 'Cúi đầu', 'Vẹo lưng', 'Mắt gần'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#2ed573', '#ff4757', '#ffa502', '#1e90ff']
+                }]
+            }
+        });
+    }
+
+    function updateChartData() {
+        if (!window.currentDetectedPose) return;
+        if (statsData[window.currentDetectedPose] !== undefined) {
+            statsData[window.currentDetectedPose]++;
+        }
+        const total = Object.values(statsData).reduce((a, b) => a + b, 0);
+        if (total > 0) {
+            chart.data.datasets[0].data = [
+                statsData['ngồi đúng'], statsData['cúi đầu'], statsData['vẹo lưng'], statsData['mắt gần']
+            ];
+            chart.update();
         }
     }
 </script>
