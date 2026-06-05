@@ -35,3 +35,12 @@ Phiên bản này tập trung xử lý logic thời gian và âm thanh để t�
 * **Tích hợp bộ đếm thời gian (Timer):** Viết thêm biến `badPostureTimer` và dùng `setInterval` để đếm giây tích lũy khi phát hiện ngồi sai tư thế, hiển thị dạng `Xs / 30s`.
 * **Cài đặt cảnh báo âm thanh:** Thêm thẻ `<audio>` để nạp file báo động. Khi thời gian đếm đạt từ 30 giây trở lên, hệ thống tự động gọi hàm `.play()` để phát âm thanh nhắc nhở.
 * **Xử lý logic tự động Reset:** Khi người dùng ngồi đúng trở lại, hệ thống tự động xóa bộ đếm bằng `clearInterval`, đưa thời gian về `0s / 30s` và dừng phát file âm thanh.
+## Bản 4: Bổ sung Chart.js Thống kê & Bố cục hoàn chỉnh
+
+Phiên bản này tập trung vào việc nhúng thư viện Chart.js để làm phần thống kê dữ liệu các tư thế theo thời gian thực và chuẩn hóa lại bố cục giao diện ở mức cơ bản.
+
+### Các công việc đã làm:
+* **Nhúng biểu đồ Chart.js:** Khởi tạo một biểu đồ dạng tròn (doughnut chart) để trực quan hóa tỉ lệ các trạng thái tư thế bao gồm Ngồi đúng, Cúi đầu, Vẹo lưng và Mắt gần.
+* **Xử lý lưu trữ và cập nhật dữ liệu:** Tạo cấu trúc đối tượng `statsData` để quản lý dữ liệu và viết hàm `updateChartData` chạy tự động mỗi giây để cộng dồn thời gian của tư thế hiện tại rồi làm mới biểu đồ.
+* **Chuẩn hóa bố cục Dashboard:** Chia giao diện thành các phân vùng (panel) có màu nền trắng và bo góc rõ ràng để tách biệt giữa khu vực hiển thị camera và khu vực điều khiển, thống kê.
+* **Định dạng lại CSS cơ bản:** Chỉnh sửa màu nền hiển thị của thanh trạng thái (màu xanh cho tư thế chuẩn và màu đỏ cho tư thế sai) giúp giao diện trực quan hơn, chưa áp dụng các hiệu ứng nâng cao như gradient hay đổ bóng phức tạp.
