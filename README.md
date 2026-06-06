@@ -44,3 +44,12 @@ Phiên bản này tập trung vào việc nhúng thư viện Chart.js để làm
 * **Xử lý lưu trữ và cập nhật dữ liệu:** Tạo cấu trúc đối tượng `statsData` để quản lý dữ liệu và viết hàm `updateChartData` chạy tự động mỗi giây để cộng dồn thời gian của tư thế hiện tại rồi làm mới biểu đồ.
 * **Chuẩn hóa bố cục Dashboard:** Chia giao diện thành các phân vùng (panel) có màu nền trắng và bo góc rõ ràng để tách biệt giữa khu vực hiển thị camera và khu vực điều khiển, thống kê.
 * **Định dạng lại CSS cơ bản:** Chỉnh sửa màu nền hiển thị của thanh trạng thái (màu xanh cho tư thế chuẩn và màu đỏ cho tư thế sai) giúp giao diện trực quan hơn, chưa áp dụng các hiệu ứng nâng cao như gradient hay đổ bóng phức tạp.
+## Bản 5: Tối ưu UI/UX, Đồng bộ hệ thống màu & Biểu đồ nâng cao
+
+Đây là phiên bản hoàn chỉnh cuối cùng của hệ thống, tập trung hoàn toàn vào việc nâng cấp thẩm mỹ giao diện (UI/UX), cấu trúc lại mã nguồn CSS và tối ưu hóa hiển thị dữ liệu đồ thị để tạo ra một Dashboard chuyên nghiệp.
+
+### Các công việc đã làm:
+* **Chuẩn hóa hệ thống màu sắc (:root):** Khai báo các biến CSS toàn cục (`--primary`, `--danger`, `--success`, `--warning`) giúp quản lý màu sắc đồng bộ theo các trạng thái (chuẩn, sai, cảnh báo) một cách khoa học và dễ bảo trì.
+* **Tạo hiệu ứng nền động (Animated Gradient):** Thiết lập dải màu gradient chuyển động mượt mà cho phần nền, phối hợp với font chữ hiện đại (`Segoe UI`) giúp giao diện mang tính ứng dụng thực tế cao, bớt khô khan.
+* **Tinh chỉnh sâu biểu đồ Chart.js:** Cấu hình lại các thuộc tính nâng cao cho Doughnut Chart bao gồm: loại bỏ đường viền thô (`borderWidth: 0`), mở rộng khoảng trống trung tâm (`cutout: '65%'`) để đồ thị thanh thoát hơn, và thêm hiệu ứng tương tác (`hoverOffset: 10`) khi di chuột vào các phân vùng thống kê.
+* **Hoàn thiện bố cục các Panel:** Đóng gói khu vực hiển thị camera, đồng hồ đếm giờ và biểu đồ thành các khối panel có bo góc mềm mại, đổ bóng nhẹ để tạo chiều sâu trực quan, đảm bảo khoảng cách giữa các phần tử cân đối và không bị vỡ khung hình.
